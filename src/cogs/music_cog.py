@@ -140,7 +140,7 @@ class Music_cog(commands.Cog):
 
 
     # Main function for stop command
-    @commands.command(name="stop", aliases=["s","Stop"], help="- Stops the music and clears the queue")
+    @commands.command(name="stop", aliases=["Stop"], help="- Stops the music and clears the queue")
     async def stop(self, ctx):
         # Check if the music has already stopped
         if not self.is_playing:
@@ -160,16 +160,23 @@ class Music_cog(commands.Cog):
     # Main function for list command
     @commands.command(name="list", aliases=["l","List"], help="- Lists all music in the queue")
     async def list(self, ctx):
-        # Format the message
+        max_length = 80
+        i = 0
         formatted_description = ""
         for file_path, title in self.music_queue:
-            formatted_description += f" - {title}\n"  
+            # Prevent showing a really long message
+            if i >= max_length:
+                formatted_description += "More songs following..."
+                break
+            # Format the message
+            formatted_description += f" - {title}\n"
+            i += 1
         # Send the message
         await self.send_embed_msg(ctx, "Music Queue:", formatted_description)
 
 
     # Main function for skip command
-    @commands.command(name="skip", aliases=["Skip"], help="- Skips the current music and plays the next music in the queue")
+    @commands.command(name="skip", aliases=["s", "Skip"], help="- Skips the current music and plays the next music in the queue")
     async def skip(self, ctx):
         # Check if the bot is playing
         if not self.is_playing:
@@ -188,9 +195,9 @@ class Music_cog(commands.Cog):
             await self.send_embed_msg(ctx, "Music Skipped!", f"Skipped current music. Start playing {title}.")
 
 
-    # Main function for load command
-    @commands.command(name="load", aliases=["Load"], help="- Load random songs in the download directory into the queue")
-    async def load(self, ctx, *args):
+    # Main function for random command
+    @commands.command(name="random", aliases=["r", "Random"], help="- Randomly adds songs from the download directory into the queue")
+    async def random(self, ctx, *args):
         # Join user's channel
         user_voice_channel = await self.join_channel(ctx)
         if user_voice_channel is None:
@@ -228,7 +235,7 @@ class Music_cog(commands.Cog):
             number_of_songs = len(mp3_files)
         # Randomly select the specified number of files
         selected_mp3_files = random.sample(mp3_files, number_of_songs)
-        # Load the selected music to the queue
+        # Add the selected music to the queue
         formatted_description = "Music added to the queue:\n"
         for file_path, title in selected_mp3_files:
             formatted_description += f" - {title}\n"
@@ -238,7 +245,6 @@ class Music_cog(commands.Cog):
         if not self.is_playing:
             self.play_next(ctx)
             self.is_playing = True
-
 
 
 
