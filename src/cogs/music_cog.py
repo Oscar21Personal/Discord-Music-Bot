@@ -54,7 +54,13 @@ class Music_cog(commands.Cog):
         if not os.path.exists(music_dir):
             os.makedirs(music_dir)
         return music_dir
+    
 
+    # Helper function to format music title
+    def format_title(self, title):
+        pattern = r'[^0-9a-zA-Z\u4e00-\u9fff\u3040-\u30ff\u31f0-\u31ff\u3400-\u4DBF\u4E00-\u9FFF]'
+        modified_title = re.sub(pattern, '', title)
+        return modified_title
 
     # Helper function to download and store audio
     def download_audio(self, query):
@@ -71,8 +77,7 @@ class Music_cog(commands.Cog):
             info_dict = ydl.extract_info(query, download=False)     # Don't download yet, just extract info
             # Format the title
             title = info_dict.get("title", "Unknown Title")
-            pattern = r'[^a-zA-Z\u4e00-\u9fff\u3040-\u30ff\u31f0-\u31ff\u3400-\u4DBF\u4E00-\u9FFF\u3000]'
-            modified_title = re.sub(pattern, '', title)
+            modified_title = self.format_title(title)
             file_path = os.path.join(music_dir, f"{modified_title}.mp3")
             # Check if the file already exists in the "music" folder
             if os.path.exists(file_path):
@@ -117,7 +122,7 @@ class Music_cog(commands.Cog):
 
 
     # Main function for play command
-    @commands.command(name="play", aliases=["p","Play"], help="- Plays a selected song from youtube")
+    @commands.command(name="play", aliases=["p","Play"], help="- Plays a selected music from youtube link")
     async def play(self, ctx, *args):
         # Check if a link is given
         query = " ".join(args)
@@ -183,7 +188,7 @@ class Music_cog(commands.Cog):
 
 
     # Main function for skip command
-    @commands.command(name="skip", aliases=["s", "Skip"], help="- Skips the current music and plays the next music in the queue")
+    @commands.command(name="skip", aliases=["Skip"], help="- Skips the current music and plays the next music in the queue")
     async def skip(self, ctx):
         # Check if the bot is playing
         if not self.is_playing:
@@ -203,7 +208,7 @@ class Music_cog(commands.Cog):
 
 
     # Main function for random command
-    @commands.command(name="random", aliases=["r", "Random"], help="- Randomly adds songs from the download directory into the queue")
+    @commands.command(name="random", aliases=["Random"], help="- Randomly adds songs from the download directory into the queue")
     async def random(self, ctx, *args):
         # Join user's channel
         user_voice_channel = await self.join_channel(ctx)
@@ -279,6 +284,30 @@ class Music_cog(commands.Cog):
         # If repeat mode on and current song is not in the list
         if self.repeat_mode and (not self.current_music in self.music_queue):
             self.music_queue.append(self.current_music)
+
+
+    # Main function for remove command
+    @commands.command(name="remove", aliases=["Remove"], help="- Removes specific music in the queue")
+    async def remove(self, ctx, *args):
+        # Check if music title is empty
+        if len(args) == 0:
+            await self.send_embed_msg(ctx, "ERROR", "Music title cannot be empty.", msg_color=discord.Color.red())
+            return
+        # Remove all inputted music title
+        for title in args:
+            modified_title = self.format_title(title)
+            index = 0
+            is_removed = False
+            for tup in self.music_queue:
+                if modified_title in tup:           # tup: (file_name, title)
+                    self.music_queue.pop(index)
+                    await self.send_embed_msg(ctx, "Music Removed!", f"Music {tup[1]} removed from the queue.")
+                    is_removed = True
+                    break
+                index += 1
+            # If nothing is removed, then title does not exist
+            if not is_removed:
+                await self.send_embed_msg(ctx, "ERROR", f"Music title '{modified_title}' not found.", msg_color=discord.Color.red())
 
 
 
