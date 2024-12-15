@@ -11,6 +11,8 @@ class Music_cog(commands.Cog):
         self.bot = bot
         self.music_queue = []
         self.is_playing = False
+        self.repeat_mode = False
+        self.current_music = ("", "")
 
 
     @commands.Cog.listener()
@@ -100,13 +102,18 @@ class Music_cog(commands.Cog):
         if len(self.music_queue) > 0:
             # Remove the music from list
             file_path, title = self.music_queue.pop(0)
+            self.current_music = (file_path, title)
             print(f"Playing {title}")
+            # If repeat mode is on, add the song back to queue
+            if self.repeat_mode:
+                self.music_queue.append((file_path, title))
             # Play the music
             voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
             if voice_client.is_connected():
                 voice_client.play(discord.FFmpegPCMAudio(source=file_path), after=lambda e: self.play_next(ctx))
         else:
             self.is_playing = False
+            self.current_music = ("", "")
 
 
     # Main function for play command
@@ -245,6 +252,33 @@ class Music_cog(commands.Cog):
         if not self.is_playing:
             self.play_next(ctx)
             self.is_playing = True
+
+
+    # Main function for repeat command
+    @commands.command(name="repeat", aliases=["Repeat"], help="- Repeatly plays music in the queue")
+    async def repeat(self, ctx, *args):
+        # Check number of arguments
+        if len(args) > 1:
+            await self.send_embed_msg(ctx, "ERROR", "Too many argumants! Only one argument is allowed.", msg_color=discord.Color.red())
+            return
+        # If input on/off, switch to that mode
+        if len(args) == 1:
+            query = " ".join(args)
+            # Validiate input
+            if query.lower() != "on" and query.lower() != "off":
+                await self.send_embed_msg(ctx, "ERROR", "Invalid argument! It must be 'on', 'off', or left empty.", msg_color=discord.Color.red())
+                return
+            # If argument does not switch mode
+            if (self.repeat_mode == True and query.lower() == "on") or (self.repeat_mode == False and query.lower() == "off"):
+                await self.send_embed_msg(ctx, "Mode Status", f"Repeat mode is already {query.lower()}.")
+                return
+        # If no argument or input on/off, switch the mode
+        self.repeat_mode = not self.repeat_mode
+        mode_str = "on" if self.repeat_mode else "off"
+        await self.send_embed_msg(ctx, "Mode Switched!", f"Repeat mode is now {mode_str}.")
+        # If repeat mode on and current song is not in the list
+        if self.repeat_mode and (not self.current_music in self.music_queue):
+            self.music_queue.append(self.current_music)
 
 
 
