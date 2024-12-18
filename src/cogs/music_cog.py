@@ -310,6 +310,28 @@ class Music_cog(commands.Cog):
                 await self.send_embed_msg(ctx, "ERROR", f"Music title '{modified_title}' not found.", msg_color=discord.Color.red())
 
 
+    # Main function for pause command
+    @commands.command(name="pause", aliases=["Pause"], help="- Pauses the currently playing music")
+    async def pause(self, ctx):
+        voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+        if voice_client and voice_client.is_playing():
+            voice_client.pause()
+            await self.send_embed_msg(ctx, "Music Paused!", f"Music {self.current_music[1]} is currently paused.")
+        else:
+            await self.send_embed_msg(ctx, "ERROR", "No music is playing right now.", msg_color=discord.Color.red())
+
+
+    # Main function for resume command
+    @commands.command(name="resume", aliases=["Resume"], help="- Resumes the paused music")
+    async def resume(self, ctx):
+        voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+        if voice_client and voice_client.is_paused():
+            voice_client.resume()
+            await self.send_embed_msg(ctx, "Music Resumed!", f"Music {self.current_music[1]} is currently resumed.")
+        else:
+            await self.send_embed_msg(ctx, "ERROR", "No music is paused right now.", msg_color=discord.Color.red())
+
+
 
 async def setup(bot):
     await bot.add_cog(Music_cog(bot))
