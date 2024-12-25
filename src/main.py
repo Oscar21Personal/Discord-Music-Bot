@@ -12,6 +12,15 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 # Create a bot object
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
+@bot.event
+async def on_ready():
+    print(f"Bot Ready! Bot connected as {bot.user}")
+    try:
+        synced_commands = await bot.tree.sync()
+        print(f"Synced {len(synced_commands)} commands")
+    except Exception as e:
+        print(f"An error with syncing application commands has occurred: {e}")
+
 async def load():
     # Get the absolute path of the cogs
     base_dir = os.path.dirname(os.path.abspath(__file__))
