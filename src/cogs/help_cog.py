@@ -22,7 +22,7 @@ class Help_cog(commands.Cog):
             msg_description += f"\n\nThis message will be deleted in {self.delete_msg_seconds} seconds."
         # Format the message
         msg_embed = discord.Embed(title=msg_title, description=msg_description, color=msg_color)
-        # msg_embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar)
+        msg_embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar)
         if not follow_up:
             await interaction.response.send_message(embed=msg_embed, delete_after=self.delete_msg_seconds)
         else:
@@ -33,6 +33,31 @@ class Help_cog(commands.Cog):
                 await message.delete()
 
 
+    # Main function for help command
+    @app_commands.command(name="help", description="List all avaliable commands")
+    async def help(self, interaction: discord.Interaction):
+        formatted_description=f"""
+```
+Music Cog
+/play           - Plays music from a youtube link
+/stop           - Stops the music and clears the queue
+/list           - Lists all music in the queue
+/skip           - Skips the current music
+/random         - Randomly adds songs to the queue
+/repeat         - Repeatly plays music in the queue
+/remove         - Removes specific music in the queue
+/pause          - Pauses the currently playing music
+/resume         - Resumes the paused music
+
+Help Cog
+/help           - List all commands available
+/ping           - Show the latency of the bot
+/auto_delete    - Set auto-delete seconds for messages
+```
+        """
+        await self.send_embed_msg(interaction, "Command List", formatted_description)
+
+
     # Main function for ping command
     @app_commands.command(name="ping", description="Show the latency of the bot")
     async def ping(self, interaction: discord.Interaction):
@@ -40,9 +65,9 @@ class Help_cog(commands.Cog):
 
 
     # Main function for set_auto_delete command
-    @app_commands.command(name="set_auto_delete", description="Set auto-delete seconds for bot messages")
-    @app_commands.describe(seconds="Number of seconds to auto-delete messages from the bot")
-    async def set_auto_delete(self, interaction: discord.Interaction, seconds: int):
+    @app_commands.command(name="auto_delete", description="Set auto-delete seconds for messages")
+    @app_commands.describe(seconds="Number of seconds before auto-delete")
+    async def auto_delete(self, interaction: discord.Interaction, seconds: int):
         # Check valid argument
         if seconds <= 0:
             await self.send_embed_msg(interaction, "ERROR", "Invalid argument! It must be an positive non-zero integer.", msg_color=discord.Color.red())

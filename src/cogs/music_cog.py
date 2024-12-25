@@ -123,7 +123,7 @@ class Music_cog(commands.Cog):
 
 
     # Main function for play command
-    @app_commands.command(name="play", description="Plays a selected music from youtube link")
+    @app_commands.command(name="play", description="Plays music from a youtube link")
     @app_commands.describe(link="Youtube link to be played")
     async def play(self, interaction: discord.Interaction, link: str):
         # Join user's channel
