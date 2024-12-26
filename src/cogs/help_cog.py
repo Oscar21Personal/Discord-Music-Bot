@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from discord.ext import commands
 from discord import app_commands
 
-# Load DISCORD_BOT_TOKEN from .env file
+# Load ADMINISTRATOR_ID from .env file
 load_dotenv()  
 ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
 
