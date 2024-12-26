@@ -1,8 +1,14 @@
+import os
 import discord
 import asyncio
 
+from dotenv import load_dotenv
 from discord.ext import commands
 from discord import app_commands
+
+# Load DISCORD_BOT_TOKEN from .env file
+load_dotenv()  
+ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
 
 class Help_cog(commands.Cog):
     def __init__(self, bot):
@@ -36,7 +42,7 @@ class Help_cog(commands.Cog):
     # Main function for help command
     @app_commands.command(name="help", description="List all avaliable commands")
     async def help(self, interaction: discord.Interaction):
-        formatted_description=f"""
+        formatted_description = """
 ```
 Music Cog
 /play           - Plays music from a youtube link
@@ -80,6 +86,21 @@ Help Cog
         # Set number of seconds
         self.delete_msg_seconds = seconds
         await self.send_embed_msg(interaction, "Auto-Delete On", f"Message auto-delete is now set to {self.delete_msg_seconds} seconds.")
+
+
+    # Main function for sync command
+    @app_commands.command(name="sync", description="Sync all slash commands")
+    async def sync(self, interaction: discord.Interaction):
+        if str(interaction.user.id) != ADMINISTRATOR_ID:
+            await self.send_embed_msg(interaction, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red)
+            return
+        try:
+            synced_commands = await self.bot.tree.sync()
+            print(f"Synced {len(synced_commands)} commands")
+            await self.send_embed_msg(interaction, "Sync Successful!", f"Synced {len(synced_commands)} commands.")
+        except Exception as e:
+            print(f"An error with syncing application commands has occurred: {e}")
+            await self.send_embed_msg(interaction, "ERROR", f"An error with syncing application commands has occurred: {e}", msg_color=discord.Color.red)
 
 
 
