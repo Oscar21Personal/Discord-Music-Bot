@@ -27,9 +27,9 @@ deactivate
 ## How to setup Discord Bot token
 
 - First, create a `.env` file in the python project directory.
-- Then add this line, and input your Discord Bot token.
+- Then add these lines. You need to enter your Discord Bot token and your Discord user id.
 ```
 DISCORD_BOT_TOKEN="your_token"
+ADMINISTRATOR_ID="123456789012345678"
 ```
-- `main.py` can now read your Discord Bot token
 - Noted that `.env` file is in `.gitignore` so it will never be pushed onto github.
