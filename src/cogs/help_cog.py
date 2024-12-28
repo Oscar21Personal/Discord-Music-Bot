@@ -7,7 +7,7 @@ from discord.ext import commands
 from discord import app_commands
 
 # Load ADMINISTRATOR_ID from .env file
-load_dotenv()  
+load_dotenv()
 ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
 
 class Help_cog(commands.Cog):
@@ -21,8 +21,19 @@ class Help_cog(commands.Cog):
         print("Help_cog ready")
 
 
-    # Helper function to send embedded messages
-    async def send_embed_msg(self, interaction, msg_title, msg_description, msg_color=discord.Color.blue(), follow_up=False):
+    # Helper function to send embedded messages from ctx
+    async def send_embed_msg_ctx(self, ctx, msg_title, msg_description, msg_color=discord.Color.blue()):
+        # If auto-delete is on
+        if self.delete_msg_seconds:
+            msg_description += f"\n\nThis message will be deleted in {self.delete_msg_seconds} seconds."
+        # Format the message
+        msg_embed = discord.Embed(title=msg_title, description=msg_description, color=msg_color)
+        msg_embed.set_footer(text=f"Requested by {ctx.author.name}", icon_url=ctx.author.avatar)
+        await ctx.send(embed=msg_embed, delete_after=self.delete_msg_seconds)
+
+
+    # Helper function to send embedded messages from interaction
+    async def send_embed_msg_inter(self, interaction, msg_title, msg_description, msg_color=discord.Color.blue(), follow_up=False):
         # If auto-delete is on
         if self.delete_msg_seconds:
             msg_description += f"\n\nThis message will be deleted in {self.delete_msg_seconds} seconds."
@@ -61,13 +72,13 @@ Help Cog
 /auto_delete    - Set auto-delete seconds for messages
 ```
         """
-        await self.send_embed_msg(interaction, "Command List", formatted_description)
+        await self.send_embed_msg_inter(interaction, "Command List", formatted_description)
 
 
     # Main function for ping command
     @app_commands.command(name="ping", description="Show the latency of the bot")
     async def ping(self, interaction: discord.Interaction):
-        await self.send_embed_msg(interaction, f"{self.bot.user.name}'s Latency (ms): ", f"{round(self.bot.latency * 1000)} ms")
+        await self.send_embed_msg_inter(interaction, f"{self.bot.user.name}'s Latency (ms): ", f"{round(self.bot.latency * 1000)} ms")
 
 
     # Main function for set_auto_delete command
@@ -76,31 +87,31 @@ Help Cog
     async def auto_delete(self, interaction: discord.Interaction, seconds: int):
         # Check valid argument
         if seconds <= 0:
-            await self.send_embed_msg(interaction, "ERROR", "Invalid argument! It must be an positive non-zero integer.", msg_color=discord.Color.red())
+            await self.send_embed_msg_inter(interaction, "ERROR", "Invalid argument! It must be an positive non-zero integer.", msg_color=discord.Color.red())
             return
         # Seconds larger than 1 hour becomes switching off auto-delete
         if seconds > 3600:
             self.delete_msg_seconds = None
-            await self.send_embed_msg(interaction, "Auto-Delete Off", "Message auto-delete is now off.")
+            await self.send_embed_msg_inter(interaction, "Auto-Delete Off", "Message auto-delete is now off.")
             return
         # Set number of seconds
         self.delete_msg_seconds = seconds
-        await self.send_embed_msg(interaction, "Auto-Delete On", f"Message auto-delete is now set to {self.delete_msg_seconds} seconds.")
+        await self.send_embed_msg_inter(interaction, "Auto-Delete On", f"Message auto-delete is now set to {self.delete_msg_seconds} seconds.")
 
 
     # Main function for sync command
-    @app_commands.command(name="sync", description="Sync all slash commands")
-    async def sync(self, interaction: discord.Interaction):
-        if str(interaction.user.id) != ADMINISTRATOR_ID:
-            await self.send_embed_msg(interaction, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red)
+    @commands.command(name="sync", help="- Sync all slash commands")
+    async def sync(self, ctx: commands.Context):
+        if str(ctx.author.id) != ADMINISTRATOR_ID:
+            await self.send_embed_msg_ctx(ctx, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red)
             return
         try:
             synced_commands = await self.bot.tree.sync()
             print(f"Synced {len(synced_commands)} commands")
-            await self.send_embed_msg(interaction, "Sync Successful!", f"Synced {len(synced_commands)} commands.")
+            await self.send_embed_msg_ctx(ctx, "Sync Successful!", f"Synced {len(synced_commands)} commands.")
         except Exception as e:
             print(f"An error with syncing application commands has occurred: {e}")
-            await self.send_embed_msg(interaction, "ERROR", f"An error with syncing application commands has occurred: {e}", msg_color=discord.Color.red)
+            await self.send_embed_msg_ctx(ctx, "ERROR", f"An error with syncing application commands has occurred: {e}", msg_color=discord.Color.red)
 
 
 
