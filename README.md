@@ -29,7 +29,7 @@ deactivate
 - First, create a `.env` file in the python project directory.
 - Then add these lines. You need to enter your Discord Bot token and your Discord user id.
 ```
-DISCORD_BOT_TOKEN="your_token"
-ADMINISTRATOR_ID="123456789012345678"
+DISCORD_BOT_TOKEN="your_bot_token"
+ADMINISTRATOR_ID="your_user_id"
 ```
 - Noted that `.env` file is in `.gitignore` so it will never be pushed onto github.
