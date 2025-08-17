@@ -226,10 +226,9 @@ class Music_cog(commands.Cog):
             file_path = os.path.join(music_dir, file_name)
             if os.path.isfile(file_path) and file_name.lower().endswith(".mp3"):
                 mp3_files.append((file_path, file_name.removesuffix(".mp3")))
-        # If no arguments, number_of_songs=99999, load all music
-        # Limit the maximum number of songs
-        if number_of_songs > len(mp3_files):
-            number_of_songs = len(mp3_files)
+        # If no arguments, number_of_songs=99999, load 100 music
+        # Limit the maximum number of songs to 100
+        number_of_songs = min(number_of_songs, len(mp3_files), 100)
         # Randomly select the specified number of files
         selected_mp3_files = random.sample(mp3_files, number_of_songs)
         # Add the selected music to the queue
