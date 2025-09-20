@@ -57,14 +57,20 @@ class Help_cog(commands.Cog):
 ```
 Music Cog
 /play           - Plays music from a youtube link
-/stop           - Stops the music and clears the queue
+/clear          - Clears all music in the queue
 /list           - Lists all music in the queue
 /skip           - Skips the current music
-/random         - Randomly adds songs to the queue
 /repeat         - Repeatly plays music in the queue
 /remove         - Removes specific music in the queue
 /pause          - Pauses the currently playing music
 /resume         - Resumes the paused music
+/move           - Moves music to another album
+
+Album Cog
+/album_create   - Creates a new album
+/album_list     - Lists all albums
+/album_switch   - Switches to another album
+/album_play     - Adds the current album to the queue
 
 Help Cog
 /help           - List all commands available

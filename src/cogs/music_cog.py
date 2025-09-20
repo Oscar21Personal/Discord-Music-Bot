@@ -148,12 +148,12 @@ class Music_cog(commands.Cog):
             self.is_playing = True
 
 
-    # Main function for stop command
-    @app_commands.command(name="stop", description="Stops the music and clears the queue")
-    async def stop(self, interaction: discord.Interaction):
+    # Main function for clear command
+    @app_commands.command(name="clear", description="Clears all music in the queue")
+    async def clear(self, interaction: discord.Interaction):
         # Check if the music has already stopped
         if not self.is_playing:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "Music has already stopped.", msg_color=discord.Color.red())
+            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "Music queue has already cleared.", msg_color=discord.Color.red())
             return
         # Stop the current song if it's playing
         voice_client = discord.utils.get(self.bot.voice_clients, guild=interaction.guild)
@@ -169,9 +169,11 @@ class Music_cog(commands.Cog):
     # Main function for list command
     @app_commands.command(name="list", description="Lists all music in the queue")
     async def list(self, interaction: discord.Interaction):
+        formatted_description = ""
         max_length = 50
         i = 0
-        formatted_description = ""
+        if len(self.music_queue) > 0:
+            formatted_description = f"**Current playing**\n \u2794 {self.current_music[1]}\n\n"
         for file_path, title in self.music_queue:
             # Prevent showing a really long message
             if i >= max_length:
