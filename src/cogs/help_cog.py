@@ -54,25 +54,31 @@ class Help_cog(commands.Cog):
     @app_commands.command(name="help", description="List all avaliable commands")
     async def help(self, interaction: discord.Interaction):
         formatted_description = """
+**Music Cog**
 ```
-Music Cog
-/play           - Plays music from a youtube link
-/clear          - Clears all music in the queue
-/list           - Lists all music in the queue
-/skip           - Skips the current music
-/repeat         - Repeatly plays music in the queue
-/remove         - Removes specific music in the queue
-/pause          - Pauses the currently playing music
-/resume         - Resumes the paused music
-/move           - Moves music to another album
-
-Album Cog
-/album_create   - Creates a new album
-/album_list     - Lists all albums
-/album_switch   - Switches to another album
-/album_play     - Adds the current album to the queue
-
-Help Cog
+/music_play     - Download and play music from YouTube
+/music_clear    - Clear all music from the queue
+/music_list     - List all music in the queue
+/music_skip     - Skip the current music
+/music_pause    - Pause the currently playing music
+/music_resume   - Resume the paused music
+/music_repeat   - Toggle repeat mode for queue
+/music_remove   - Remove a specific music from the queue
+```
+**Album Cog**
+```
+/album_create   - Create a new album
+/album_tracks   - List all tracks in the current album
+/album_list     - List all albums
+/album_switch   - Switch to another album
+/album_add      - Add a track to the current album
+/album_remove   - Remove a track from the current album
+/album_play     - Add the current album to the queue
+/album_rename   - Rename an album
+/album_delete   - Delete an album
+```
+**Help Cog**
+```
 /help           - List all commands available
 /ping           - Show the latency of the bot
 /auto_delete    - Set auto-delete seconds for messages
