@@ -13,16 +13,41 @@ ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
 class Help_cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.manager_cog = None
+        self.delete_msg_seconds = None      # None: never delete
 
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self.manager_cog = self.bot.get_cog("Manager_cog")
-        if not self.manager_cog:
-            print("Error: Manager_cog not found")
+        print("Help_cog ready!")
+
+
+    # Helper function to send embedded messages from ctx
+    async def send_embed_msg_ctx(self, ctx, msg_title, msg_description, msg_color=discord.Color.blue()):
+        # If auto-delete is on
+        if self.delete_msg_seconds:
+            msg_description += f"\n\nThis message will be deleted in {self.delete_msg_seconds} seconds."
+        # Format the message
+        msg_embed = discord.Embed(title=msg_title, description=msg_description, color=msg_color)
+        msg_embed.set_footer(text=f"Requested by {ctx.author.name}", icon_url=ctx.author.avatar)
+        await ctx.send(embed=msg_embed, delete_after=self.delete_msg_seconds)
+
+
+    # Helper function to send embedded messages from interaction
+    async def send_embed_msg_inter(self, interaction, msg_title, msg_description, msg_color=discord.Color.blue(), follow_up=False):
+        # If auto-delete is on
+        if self.delete_msg_seconds:
+            msg_description += f"\n\nThis message will be deleted in {self.delete_msg_seconds} seconds."
+        # Format the message
+        msg_embed = discord.Embed(title=msg_title, description=msg_description, color=msg_color)
+        msg_embed.set_footer(text=f"Requested by {interaction.user.name}", icon_url=interaction.user.avatar)
+        if not follow_up:
+            await interaction.response.send_message(embed=msg_embed, delete_after=self.delete_msg_seconds)
         else:
-            print("Help_cog ready")
+            message = await interaction.followup.send(embed=msg_embed)
+            # Manually delete message because .followup.send() does not support it
+            if self.delete_msg_seconds:
+                await asyncio.sleep(self.delete_msg_seconds)
+                await message.delete()
 
 
     # Main function for help command
@@ -31,10 +56,10 @@ class Help_cog(commands.Cog):
         formatted_description = """
 **Music Cog**
 ```
-/music_play     - Download and play music from YouTube
-/music_clear    - Clear all music from the queue
-/music_list     - List all music in the queue
-/music_skip     - Skip the current music
+/music_play(p)  - Download and play music from YouTube
+/music_clear(c) - Clear all music from the queue
+/music_list(l)  - List all music in the queue
+/music_skip(s)  - Skip the current music
 /music_pause    - Pause the currently playing music
 /music_resume   - Resume the paused music
 /music_repeat   - Toggle repeat mode for queue
@@ -59,13 +84,13 @@ class Help_cog(commands.Cog):
 /auto_delete    - Set auto-delete seconds for messages
 ```
         """
-        await self.manager_cog.send_embed_msg_inter(interaction, "Command List", formatted_description)
+        await self.send_embed_msg_inter(interaction, "Command List", formatted_description)
 
 
     # Main function for ping command
     @app_commands.command(name="ping", description="Show the latency of the bot")
     async def ping(self, interaction: discord.Interaction):
-        await self.manager_cog.send_embed_msg_inter(interaction, f"{self.bot.user.name}'s Latency (ms): ", f"{round(self.bot.latency * 1000)} ms")
+        await self.send_embed_msg_inter(interaction, f"{self.bot.user.name}'s Latency (ms): ", f"{round(self.bot.latency * 1000)} ms")
 
 
     # Main function for set_auto_delete command
@@ -74,31 +99,31 @@ class Help_cog(commands.Cog):
     async def auto_delete(self, interaction: discord.Interaction, seconds: int):
         # Check valid argument
         if seconds <= 0:
-            await self.manager_cog.send_embed_msg_inter(interaction, "ERROR", "Invalid argument! It must be an positive non-zero integer.", msg_color=discord.Color.red())
+            await self.send_embed_msg_inter(interaction, "ERROR", "Invalid argument! It must be an positive non-zero integer.", msg_color=discord.Color.red())
             return
         # Seconds larger than 1 hour becomes switching off auto-delete
         if seconds > 3600:
-            self.manager_cog.delete_msg_seconds = None
-            await self.manager_cog.send_embed_msg_inter(interaction, "Auto-Delete Off", "Message auto-delete is now off.")
+            self.delete_msg_seconds = None
+            await self.send_embed_msg_inter(interaction, "Auto-Delete Off", "Message auto-delete is now off.")
             return
         # Set number of seconds
-        self.manager_cog.delete_msg_seconds = seconds
-        await self.manager_cog.send_embed_msg_inter(interaction, "Auto-Delete On", f"Message auto-delete is now set to {self.manager_cog.delete_msg_seconds} seconds.")
+        self.delete_msg_seconds = seconds
+        await self.send_embed_msg_inter(interaction, "Auto-Delete On", f"Message auto-delete is now set to {self.delete_msg_seconds} seconds.")
 
 
     # Main function for sync command
     @commands.command(name="sync", help="- Sync all slash commands")
     async def sync(self, ctx: commands.Context):
         if str(ctx.author.id) != ADMINISTRATOR_ID:
-            await self.manager_cog.send_embed_msg_ctx(ctx, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red)
+            await self.send_embed_msg_ctx(ctx, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red)
             return
         try:
             synced_commands = await self.bot.tree.sync()
             print(f"Synced {len(synced_commands)} commands")
-            await self.manager_cog.send_embed_msg_ctx(ctx, "Sync Successful!", f"Synced {len(synced_commands)} commands.")
+            await self.send_embed_msg_ctx(ctx, "Sync Successful!", f"Synced {len(synced_commands)} commands.")
         except Exception as e:
             print(f"An error with syncing application commands has occurred: {e}")
-            await self.manager_cog.send_embed_msg_ctx(ctx, "ERROR", f"An error with syncing application commands has occurred: {e}", msg_color=discord.Color.red)
+            await self.send_embed_msg_ctx(ctx, "ERROR", f"An error with syncing application commands has occurred: {e}", msg_color=discord.Color.red)
 
 
 
