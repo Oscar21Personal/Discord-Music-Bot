@@ -115,7 +115,7 @@ class Help_cog(commands.Cog):
     @commands.command(name="sync", help="- Sync all slash commands")
     async def sync(self, ctx: commands.Context):
         if str(ctx.author.id) != ADMINISTRATOR_ID:
-            await self.send_embed_msg_ctx(ctx, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red)
+            await self.send_embed_msg_ctx(ctx, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red())
             return
         try:
             synced_commands = await self.bot.tree.sync()
@@ -123,7 +123,7 @@ class Help_cog(commands.Cog):
             await self.send_embed_msg_ctx(ctx, "Sync Successful!", f"Synced {len(synced_commands)} commands.")
         except Exception as e:
             print(f"An error with syncing application commands has occurred: {e}")
-            await self.send_embed_msg_ctx(ctx, "ERROR", f"An error with syncing application commands has occurred: {e}", msg_color=discord.Color.red)
+            await self.send_embed_msg_ctx(ctx, "ERROR", f"An error with syncing application commands has occurred: {e}", msg_color=discord.Color.red())
 
 
 

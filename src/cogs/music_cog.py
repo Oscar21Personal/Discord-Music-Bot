@@ -199,7 +199,7 @@ class Music_cog(commands.Cog):
         max_length = 50
         i = 0
         if self.is_playing:
-            formatted_description = f"**Current playing**\n \u2794 {self.current_music[1]}\n\n"
+            formatted_description = f"**Current playing**\n \u2794 {self.current_music[1]}\n\n**Following**\n"
         for file_path, title in self.music_queue:
             # Prevent showing a really long message
             if i >= max_length:
@@ -234,14 +234,15 @@ class Music_cog(commands.Cog):
         # Stop the current song if it's playing
         voice_client = discord.utils.get(self.bot.voice_clients, guild=interaction.guild)
         if voice_client.is_playing():
+            skipped_title = self.current_music[1]
             # Stop the current music and start playing the next music automatically
             # Note: when .stop() is called, it executes the after function in .play(), which automatically calls play_next()
             voice_client.stop()
             if len(self.music_queue) == 0:
-                await self.help_cog.send_embed_msg_inter(interaction, "Music Skipped!", f"The queue is now empty.")
+                await self.help_cog.send_embed_msg_inter(interaction, "Music Skipped!", f"Skipped {skipped_title}.\nThe queue is now empty.")
                 return
-            file_path, title = self.music_queue[0]
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Skipped!", f"Skipped current music. Start playing {title}.")
+            _, next_title = self.music_queue[0]
+            await self.help_cog.send_embed_msg_inter(interaction, "Music Skipped!", f"Skipped {skipped_title}.\nStart playing {next_title}.")
 
 
     # Main function for music_pause command
