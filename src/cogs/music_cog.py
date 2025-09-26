@@ -145,7 +145,7 @@ class Music_cog(commands.Cog):
             return
         # Add audio to list
         self.music_queue.append((file_path, title))
-        await self.help_cog.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music {title} added to the queue.", follow_up=True)
+        await self.help_cog.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music *{title}* added to the queue.", follow_up=True)
         # Start playing the audio
         if not self.is_playing:
             self.play_next(interaction)
@@ -239,10 +239,10 @@ class Music_cog(commands.Cog):
             # Note: when .stop() is called, it executes the after function in .play(), which automatically calls play_next()
             voice_client.stop()
             if len(self.music_queue) == 0:
-                await self.help_cog.send_embed_msg_inter(interaction, "Music Skipped!", f"Skipped {skipped_title}.\nThe queue is now empty.")
+                await self.help_cog.send_embed_msg_inter(interaction, "Music Skipped!", f"Skipped *{skipped_title}*.\nThe queue is now empty.")
                 return
             _, next_title = self.music_queue[0]
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Skipped!", f"Skipped {skipped_title}.\nStart playing {next_title}.")
+            await self.help_cog.send_embed_msg_inter(interaction, "Music Skipped!", f"Skipped *{skipped_title}*.\nStart playing *{next_title}*.")
 
 
     # Main function for music_pause command
@@ -251,7 +251,7 @@ class Music_cog(commands.Cog):
         voice_client = discord.utils.get(self.bot.voice_clients, guild=interaction.guild)
         if voice_client and voice_client.is_playing():
             voice_client.pause()
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Paused!", f"Music {self.current_music[1]} is currently paused.")
+            await self.help_cog.send_embed_msg_inter(interaction, "Music Paused!", f"Music *{self.current_music[1]}* is currently paused.")
         else:
             await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "No music is playing right now.", msg_color=discord.Color.red())
 
@@ -262,7 +262,7 @@ class Music_cog(commands.Cog):
         voice_client = discord.utils.get(self.bot.voice_clients, guild=interaction.guild)
         if voice_client and voice_client.is_paused():
             voice_client.resume()
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Resumed!", f"Music {self.current_music[1]} is currently resumed.")
+            await self.help_cog.send_embed_msg_inter(interaction, "Music Resumed!", f"Music *{self.current_music[1]}* is currently resumed.")
         else:
             await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "No music is paused right now.", msg_color=discord.Color.red())
 
@@ -286,9 +286,22 @@ class Music_cog(commands.Cog):
             self.music_queue.append(self.current_music)
 
 
+    # Music autocomplete callback function
+    async def music_autocomplete(self, interaction: discord.Interaction, current: str):
+        # List all music in the queue
+        all_titles = [title for _, title in self.music_queue]
+        # Filter by what the user typed
+        choices = [
+            app_commands.Choice(name=title, value=title)
+            for title in all_titles if current.lower() in title.lower()
+        ][:25]  # Max 25 choices
+        return choices
+
+
     # Main function for music_remove command
     @app_commands.command(name="music_remove", description="Remove a specific music from the queue")
     @app_commands.describe(music_title="Title of the music from 'music_list' command")
+    @app_commands.autocomplete(music_title=music_autocomplete)
     async def music_remove(self, interaction: discord.Interaction, music_title: str):
         # Remove inputted music title
         modified_title = self.format_title(music_title)
@@ -297,13 +310,13 @@ class Music_cog(commands.Cog):
         for tup in self.music_queue:
             if modified_title in tup:           # tup: (file_name, title)
                 self.music_queue.pop(index)
-                await self.help_cog.send_embed_msg_inter(interaction, "Music Removed!", f"Music {tup[1]} removed from the queue.")
+                await self.help_cog.send_embed_msg_inter(interaction, "Music Removed!", f"Music *{tup[1]}* removed from the queue.")
                 is_removed = True
                 break
             index += 1
         # If nothing is removed, then title does not exist
         if not is_removed:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Music title '{modified_title}' not found.", msg_color=discord.Color.red())
+            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Music title *{modified_title}* not found.", msg_color=discord.Color.red())
 
 
 async def setup(bot):

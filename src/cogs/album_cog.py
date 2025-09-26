@@ -53,8 +53,8 @@ class Album_cog(commands.Cog):
     # Helper function to get current album directory
     def get_current_album_dir(self):
         album_dir = self.initialise_album_dir()
-        head, _ = os.path.split(album_dir)      # Go up one level
-        current_dir = os.path.join(head, self.current_album)
+        parent_dir = os.path.dirname(album_dir)
+        current_dir = os.path.join(parent_dir, self.current_album)
         # Ensure the album folder exists
         if not os.path.exists(current_dir):
             os.makedirs(current_dir)
@@ -72,8 +72,8 @@ class Album_cog(commands.Cog):
     async def album_create(self, interaction: discord.Interaction, album_name: str):
         album_name = self.format_album_title(album_name)
         current_dir = self.get_current_album_dir()
-        head, _ = os.path.split(current_dir)    # Go up one level
-        new_dir = os.path.join(head, album_name)
+        parent_dir = os.path.dirname(current_dir)
+        new_dir = os.path.join(parent_dir, album_name)
         if os.path.isdir(new_dir):
             # Reject request if directory already exists
             await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Album **{album_name}** already exists!", msg_color=discord.Color.red())
@@ -104,11 +104,11 @@ class Album_cog(commands.Cog):
     @app_commands.command(name="album_list", description="List all albums")
     async def album_list(self, interaction: discord.Interaction):
         album_dir = self.get_current_album_dir()
-        albums_dir, _ = os.path.split(album_dir)    # Go up one level
+        parent_dir = os.path.dirname(album_dir)
         # Extract all album titles
         formatted_description = f"**Current album**\n \u2794 {self.current_album}\n\n**Other Album**\n"
-        for folder_name in os.listdir(albums_dir):
-            folder_path = os.path.join(albums_dir, folder_name)
+        for folder_name in os.listdir(parent_dir):
+            folder_path = os.path.join(parent_dir, folder_name)
             if os.path.isdir(folder_path):
                 if folder_name == self.current_album:
                     continue
@@ -116,14 +116,28 @@ class Album_cog(commands.Cog):
         formatted_description = formatted_description[:-1]      # Removes the last character '\n'
         await self.help_cog.send_embed_msg_inter(interaction, "Album List:", formatted_description)
 
+
+    # Album autocomplete callback function
+    async def album_autocomplete(self, interaction: discord.Interaction, current: str):
+        # List directories in albums folder
+        albums_root = os.path.dirname(self.get_current_album_dir())
+        all_albums = [f for f in os.listdir(albums_root) if os.path.isdir(os.path.join(albums_root, f))]
+        # Filter by what the user typed
+        choices = [
+            app_commands.Choice(name=album, value=album)
+            for album in all_albums if current.lower() in album.lower()
+        ][:25]  # Max 25 choices
+        return choices
+
     
     # Main function for album_switch command
     @app_commands.command(name="album_switch", description="Switch to another album")
+    @app_commands.autocomplete(album_name=album_autocomplete)
     async def album_switch(self, interaction: discord.Interaction, album_name: str):
         album_name = self.format_album_title(album_name)
         current_dir = self.get_current_album_dir()
-        head, _ = os.path.split(current_dir)    # Go up one level
-        switch_dir = os.path.join(head, album_name)
+        parent_dir = os.path.dirname(current_dir)
+        switch_dir = os.path.join(parent_dir, album_name)
         if not os.path.isdir(switch_dir):
             await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Album **{album_name}** does not exist!", msg_color=discord.Color.red())
             return
@@ -190,7 +204,7 @@ class Album_cog(commands.Cog):
     async def album_rename(self, interaction: discord.Interaction, new_album_name: str):
         new_album_name = self.format_album_title(new_album_name)
         # Reject request if renaming "Default"
-        if new_album_name == "Default":
+        if self.current_album == "Default":
             await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Album **Default** cannot be renamed!", msg_color=discord.Color.red())
             return
         current_dir = self.get_current_album_dir()
@@ -207,6 +221,7 @@ class Album_cog(commands.Cog):
 
     # Main function for album_delete command
     @app_commands.command(name="album_delete", description="Delete an album")
+    @app_commands.autocomplete(album_name=album_autocomplete)
     async def album_delete(self, interaction: discord.Interaction, album_name: str):
         album_name = self.format_album_title(album_name)
         # Only administrator can delete albums
