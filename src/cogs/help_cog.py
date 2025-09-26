@@ -63,7 +63,9 @@ class Help_cog(commands.Cog):
 /music_pause    - Pause the currently playing music
 /music_resume   - Resume the paused music
 /music_repeat   - Toggle repeat mode for queue
-/music_remove   - Remove a specific music from the queue
+/music_remove   - Remove music from the queue
+/music_add      - Add music to current album
+/music_delete   - Remove music from current album
 ```
 **Album Cog**
 ```
@@ -71,8 +73,6 @@ class Help_cog(commands.Cog):
 /album_tracks   - List all tracks in the current album
 /album_list     - List all albums
 /album_switch   - Switch to another album
-/album_add      - Add a track to the current album
-/album_remove   - Remove a track from the current album
 /album_play     - Add the current album to the queue
 /album_rename   - Rename an album
 /album_delete   - Delete an album

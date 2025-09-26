@@ -144,18 +144,6 @@ class Album_cog(commands.Cog):
         self.current_album = album_name
         await self.help_cog.send_embed_msg_inter(interaction, "Album Switched!", f"Current album is now switched to **{album_name}**")
 
-    
-    # Main function for album_add command
-    @app_commands.command(name="album_add", description="Add a track to the current album")
-    async def album_add(self, interaction: discord.Interaction, music_title: str):
-        await self.help_cog.send_embed_msg_inter(interaction, f"TODO", f"DO STH")
-
-
-    # Main function for album_remove command
-    @app_commands.command(name="album_remove", description="Remove a track from the current album")
-    async def album_remove(self, interaction: discord.Interaction, music_title: str):
-        await self.help_cog.send_embed_msg_inter(interaction, f"TODO", f"DO STH")
-
 
     # Main function for album_play command
     @app_commands.command(name="album_play", description="Add the current album to the queue")
