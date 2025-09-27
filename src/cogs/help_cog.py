@@ -13,7 +13,7 @@ ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
 class Help_cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.delete_msg_seconds = 10      # None: never delete
+        self.delete_msg_seconds = None      # None: never delete
 
 
     @commands.Cog.listener()

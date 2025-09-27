@@ -410,7 +410,10 @@ class Music_cog(commands.Cog):
         if str(interaction.user.id) != ADMINISTRATOR_ID:
             await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red())
             return
-        # Reject request if music is in the queue
+        # Reject request if music is in the queue or current playing
+        if modified_title == self.current_music[1]:
+            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Music *{modified_title}* is currently playing.", msg_color=discord.Color.red())
+            return
         for tup in self.music_queue:
             if modified_title in tup:
                 await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Music *{modified_title}* is still in the music queue.", msg_color=discord.Color.red())
