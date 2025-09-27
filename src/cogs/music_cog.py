@@ -3,9 +3,15 @@ import discord
 import re
 import asyncio
 
+from dotenv import load_dotenv
 from discord.ext import commands
 from discord import app_commands
 from yt_dlp import YoutubeDL
+
+# Load ADMINISTRATOR_ID from .env file
+load_dotenv()
+ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
+
 
 class Music_cog(commands.Cog):
     def __init__(self, bot):
@@ -70,7 +76,7 @@ class Music_cog(commands.Cog):
             with YoutubeDL(ydl_opts_info) as ydl:
                 # Use ytsearch if query is not a direct URL
                 if not query.startswith("http"):
-                    search_query = f"ytsearch1:{query}"
+                    search_query = f"ytsearch1:{query}"     # Only gives one result
                 else:
                     search_query = query
                 # Don't download yet, just extract info
@@ -78,12 +84,12 @@ class Music_cog(commands.Cog):
                 ########################################
                 # TODO: check if the mp3 is correct
                 # If ytsearch results a playlist, check number of entries 
-                if info_dict.get("_type") == "playlist":
-                    entries = info_dict.get("entries", [])
-                    if len(entries) != 1:
-                        print(f"Multiple search results found ({len(entries)}), aborting.")
-                        return None, None, None, None
-                    info_dict = entries[0]
+                # if info_dict.get("_type") == "playlist":
+                #     entries = info_dict.get("entries", [])
+                #     if len(entries) != 1:
+                #         print(f"Multiple search results found ({len(entries)}), aborting.")
+                #         return None, None, None, None
+                #     info_dict = entries[0]
                 ########################################
                 # Format the title
                 title = info_dict.get("title", "Unknown Title")
@@ -326,9 +332,8 @@ class Music_cog(commands.Cog):
             self.music_queue.append(self.current_music)
 
 
-    # Music autocomplete callback function
-    # TODO: not only check music_queue, also current album ####################
-    async def music_autocomplete(self, interaction: discord.Interaction, current: str):
+    # Music in queue autocomplete callback function
+    async def music_queue_autocomplete(self, interaction: discord.Interaction, current: str):
         # List all music in the queue
         all_titles = [title for _, title in self.music_queue]
         # Filter by what the user typed
@@ -342,14 +347,14 @@ class Music_cog(commands.Cog):
     # Main function for music_remove command
     @app_commands.command(name="music_remove", description="Remove a specific music from the queue")
     @app_commands.describe(music_title="Title of the music from 'music_list' command")
-    @app_commands.autocomplete(music_title=music_autocomplete)
+    @app_commands.autocomplete(music_title=music_queue_autocomplete)
     async def music_remove(self, interaction: discord.Interaction, music_title: str):
         # Remove inputted music title
         modified_title = self.format_title(music_title)
         index = 0
         is_removed = False
         for tup in self.music_queue:
-            if modified_title in tup:           # tup: (file_name, title)
+            if modified_title in tup:
                 self.music_queue.pop(index)
                 await self.help_cog.send_embed_msg_inter(interaction, "Music Removed!", f"Music *{tup[1]}* removed from the queue.")
                 is_removed = True
@@ -364,23 +369,61 @@ class Music_cog(commands.Cog):
     @app_commands.command(name="music_add", description="Add music to current album")
     @app_commands.describe(query="Youtube link or title of the music to be added")
     async def music_add(self, interaction: discord.Interaction, query: str):
-        # Download the audio
-        try:
-            print(f"Downloading {query}")
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading {query}")
-            file_path, title = self.download_audio(query)
-        except Exception as e:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red())
+        # Search beforehand to make sure the audio is valid
+        print(f"Validating query: {query}")
+        await self.help_cog.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'")
+        search_query, file_path, title, is_exist = self.validate_audio(query)
+        if not file_path:
+            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "The Youtube link is invalid or the search query is too general.", msg_color=discord.Color.red(), follow_up=True)
             return
+        # Download the audio
+        if not is_exist:
+            print(f"Downloading {title}")
+            await self.help_cog.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{title}'", follow_up=True)
+            file_path = self.download_audio(file_path, search_query)
+            if not file_path:
+                await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red(), follow_up=True)
+                return
         await self.help_cog.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music *{title}* added to current album.", follow_up=True)
+
+
+    # Music in album autocomplete callback function
+    async def music_album_autocomplete(self, interaction: discord.Interaction, current: str):
+        # List all music in the album
+        album_dir = self.album_cog.get_current_album_dir()
+        all_titles = [file_name.removesuffix(".mp3") for file_name in os.listdir(album_dir)]
+        # Filter by what the user typed
+        choices = [
+            app_commands.Choice(name=title, value=title)
+            for title in all_titles if current.lower() in title.lower()
+        ][:25]  # Max 25 choices
+        return choices
 
 
     # Main function for music_delete command
     @app_commands.command(name="music_delete", description="Remove music from current album")
     @app_commands.describe(music_title="Title of the music from 'music_list' command")
-    @app_commands.autocomplete(music_title=music_autocomplete)
+    @app_commands.autocomplete(music_title=music_album_autocomplete)
     async def music_delete(self, interaction: discord.Interaction, music_title: str):
-        await self.help_cog.send_embed_msg_inter(interaction, f"TODO", f"DO STH")
+        modified_title = self.format_title(music_title)
+        # Only administrator can delete music
+        if str(interaction.user.id) != ADMINISTRATOR_ID:
+            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red())
+            return
+        # Reject request if music is in the queue
+        for tup in self.music_queue:
+            if modified_title in tup:
+                await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Music *{modified_title}* is still in the music queue.", msg_color=discord.Color.red())
+                return
+        # Delete the music from current album
+        album_dir = self.album_cog.get_current_album_dir()
+        file_to_delete = f"{modified_title}.mp3"
+        file_path = os.path.join(album_dir, file_to_delete)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            await self.help_cog.send_embed_msg_inter(interaction, "Music Deleted!", f"Music *{modified_title}* deleted from the current album.")
+        else:
+            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Music *{modified_title}* does not exist in current album.", msg_color=discord.Color.red())
 
 
 async def setup(bot):
