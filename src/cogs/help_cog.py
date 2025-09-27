@@ -86,11 +86,30 @@ class Help_cog(commands.Cog):
         """
         await self.send_embed_msg_inter(interaction, "Command List", formatted_description)
 
-
+    
     # Main function for ping command
     @app_commands.command(name="ping", description="Show the latency of the bot")
     async def ping(self, interaction: discord.Interaction):
         await self.send_embed_msg_inter(interaction, f"{self.bot.user.name}'s Latency (ms): ", f"{round(self.bot.latency * 1000)} ms")
+
+        ############################################
+        from utils.select_menu import SelectMenu
+        # Fake results to test
+        results = [
+            {"title": "Song One", "duration": 210, "uploader": "Artist A"},
+            {"title": "Song Two", "duration": 180, "uploader": "Artist B"},
+            {"title": "Song Three", "duration": 240, "uploader": "Artist C"},
+        ]
+        view = SelectMenu(results)
+        await interaction.followup.send("Choose a song:", view=view, ephemeral=True)
+        # Wait until user selects or timeout
+        await view.wait()
+        if view.result is None:
+            await interaction.followup.send("No selection made.", ephemeral=True)
+            return
+        choice = results[view.result]
+        await interaction.followup.send(f"Downloading **{choice['title']}** by {choice['uploader']}...", ephemeral=True)
+        ############################################
 
 
     # Main function for set_auto_delete command
