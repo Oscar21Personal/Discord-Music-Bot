@@ -1,6 +1,7 @@
 import os
 import discord
 import re
+import asyncio
 
 from discord.ext import commands
 from discord import app_commands
@@ -51,12 +52,12 @@ class Music_cog(commands.Cog):
     # Helper function to format music title
     def format_title(self, title):
         pattern = r'[^0-9a-zA-Z\u4e00-\u9fff\u3040-\u30ff\u31f0-\u31ff\u3400-\u4DBF\u4E00-\u9FFF]'
-        modified_title = re.sub(pattern, '', title)
-        return modified_title
+        formatted_title = re.sub(pattern, '', title)
+        return formatted_title
 
 
-    # Helper function to download and store audio
-    def download_audio(self, query):
+    # Helper function to search for valid audio to download
+    def validate_audio(self, query):
         # Initialise album directory
         album_dir = self.album_cog.get_current_album_dir()
         # Extract video info first
@@ -64,48 +65,65 @@ class Music_cog(commands.Cog):
             'format': 'bestaudio/best',
             'quiet': True,
         }
-        modified_title = ""
-        file_path = ""
-        with YoutubeDL(ydl_opts_info) as ydl:
-            ######################
-            # Use ytsearch if query is not a direct URL
-            if not query.startswith("http"):
-                search_query = f"ytsearch1:\"{self.format_title(query)}\""
-            else:
-                search_query = query
-            print(search_query)
-            # Don't download yet, just extract info
-            info_dict = ydl.extract_info(search_query, download=False) 
-            # ytsearch returns a list
-            if "entries" in info_dict:  
-                info_dict = info_dict["entries"][0]
-            ######################
+        search_query = None
+        try:
+            with YoutubeDL(ydl_opts_info) as ydl:
+                # Use ytsearch if query is not a direct URL
+                if not query.startswith("http"):
+                    search_query = f"ytsearch1:{query}"
+                else:
+                    search_query = query
+                # Don't download yet, just extract info
+                info_dict = ydl.extract_info(search_query, download=False)
+                ########################################
+                # TODO: check if the mp3 is correct
+                # If ytsearch results a playlist, check number of entries 
+                if info_dict.get("_type") == "playlist":
+                    entries = info_dict.get("entries", [])
+                    if len(entries) != 1:
+                        print(f"Multiple search results found ({len(entries)}), aborting.")
+                        return None, None, None, None
+                    info_dict = entries[0]
+                ########################################
+                # Format the title
+                title = info_dict.get("title", "Unknown Title")
+                formatted_title = self.format_title(title)
+                file_path = os.path.join(album_dir, f"{formatted_title}.mp3")
+                # Check if the file already exists in the "album" folder
+                is_exist = False
+                if os.path.exists(file_path):
+                    print(f"Audio file already exists: {file_path}")
+                    is_exist = True
+                return search_query, file_path, formatted_title, is_exist
+        except Exception as e:
+            print(f"Error occured at audio validation: {e}")
+            return None, None, None, None
 
-            # Format the title
-            title = info_dict.get("title", "Unknown Title")
-            modified_title = self.format_title(title)
-            file_path = os.path.join(album_dir, f"{modified_title}.mp3")
-            # Check if the file already exists in the "album" folder
-            if os.path.exists(file_path):
-                print(f"Audio file already exists: {file_path}")
-                return file_path, modified_title
+
+    # Helper function to download and store audio
+    def download_audio(self, file_path, search_query):
+        file_path_no_ext = file_path.removesuffix(".mp3")
         # Options for yt-dlp downloads
         ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': f'{album_dir}/{modified_title}.%(ext)s',
+            'format': 'bestaudio[abr>256]/bestaudio/best',
+            'outtmpl': f'{file_path_no_ext}.%(ext)s',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
-                'preferredquality': '192',
+                'preferredquality': '320',
             }],
             'quiet': True,
         }
-        # Download the audio to the file_path
-        with YoutubeDL(ydl_opts) as ydl:
-            # If the file does not exist, proceed to download the audio
-            ydl.download([query])
-            print(f"Audio downloaded at: {file_path}")
-            return file_path, modified_title
+        try:
+            # Download the audio to the file_path
+            with YoutubeDL(ydl_opts) as ydl:
+                # If the file does not exist, proceed to download the audio
+                ydl.download([search_query])
+                print(f"Audio downloaded at: {file_path}")
+                return file_path
+        except Exception as e:
+            print(f"Error occured at audio download: {e}")
+            return None
 
 
     # Helper function to play the next song in the music queue
@@ -129,33 +147,42 @@ class Music_cog(commands.Cog):
 
     # Aliase for music_play command
     @app_commands.command(name="p", description="Aliase for /music_play")
-    @app_commands.describe(link="Youtube link to be played")
-    async def p(self, interaction: discord.Interaction, link: str):
-        await self.music_play_handler(interaction, link)
+    @app_commands.describe(query="Youtube link or title of the music to be played")
+    async def p(self, interaction: discord.Interaction, query: str):
+        await self.music_play_handler(interaction, query)
 
 
     # Function for music_play command
     @app_commands.command(name="music_play", description="Download and play music from YouTube")
-    @app_commands.describe(link="Youtube link to be played")
-    async def music_play(self, interaction: discord.Interaction, link: str):
-        await self.music_play_handler(interaction, link)
+    @app_commands.describe(query="Youtube link or title of the music to be played")
+    async def music_play(self, interaction: discord.Interaction, query: str):
+        await self.music_play_handler(interaction, query)
 
 
     # Main logic for music_play command
-    async def music_play_handler(self, interaction, link): 
+    async def music_play_handler(self, interaction, query): 
         # Join user's channel
         user_voice_channel = await self.join_channel(interaction)
         if user_voice_channel is None:
             await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "You need to be in a voice channel for me to join!", msg_color=discord.Color.red())
             return
-        # Download the audio
-        try:
-            print(f"Downloading {link}")
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading {link}")
-            file_path, title = self.download_audio(link)
-        except Exception as e:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red())
+        
+        # Search beforehand to make sure the audio is valid
+        print(f"Validating query: {query}")
+        await self.help_cog.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'")
+        search_query, file_path, title, is_exist = self.validate_audio(query)
+        if not file_path:
+            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "The Youtube link is invalid or the search query is too general.", msg_color=discord.Color.red(), follow_up=True)
             return
+        # Download the audio
+        if not is_exist:
+            print(f"Downloading {title}")
+            await self.help_cog.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{title}'", follow_up=True)
+            file_path = self.download_audio(file_path, search_query)
+            if not file_path:
+                await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red(), follow_up=True)
+                return
+
         # Add audio to list
         self.music_queue.append((file_path, title))
         await self.help_cog.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music *{title}* added to the queue.", follow_up=True)
@@ -335,14 +362,13 @@ class Music_cog(commands.Cog):
 
     # Main function for music_add command
     @app_commands.command(name="music_add", description="Add music to current album")
-    @app_commands.describe(music_title="Title of the music from 'music_list' command")
-    @app_commands.autocomplete(music_title=music_autocomplete)
-    async def music_add(self, interaction: discord.Interaction, music_title: str):
+    @app_commands.describe(query="Youtube link or title of the music to be added")
+    async def music_add(self, interaction: discord.Interaction, query: str):
         # Download the audio
         try:
-            print(f"Downloading {music_title}")
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading {music_title}")
-            file_path, title = self.download_audio(music_title)
+            print(f"Downloading {query}")
+            await self.help_cog.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading {query}")
+            file_path, title = self.download_audio(query)
         except Exception as e:
             await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red())
             return
