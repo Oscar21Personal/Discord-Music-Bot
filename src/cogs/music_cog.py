@@ -1,5 +1,6 @@
-import os
+import asyncio
 import discord
+import os
 import re
 
 from dotenv import load_dotenv
@@ -111,7 +112,7 @@ class Music_cog(commands.Cog):
 
 
     # Helper function to download and store audio
-    def download_audio(self, file_path, url):
+    async def download_audio(self, file_path, url):
         file_path_no_ext = file_path.removesuffix(".mp3")
         # Options for yt-dlp downloads
         ydl_opts = {
@@ -122,16 +123,21 @@ class Music_cog(commands.Cog):
                 'preferredcodec': 'mp3',
                 'preferredquality': '320',
             }],
+            'retries': 10,
+            'fragment_retries': 10,
+            'continuedl': True,        # resume partial files
             'quiet': True,
             'no_warnings': True,
         }
+        # Download the audio to the file_path asynchronously
+        loop = asyncio.get_event_loop()
         try:
-            # Download the audio to the file_path
-            with YoutubeDL(ydl_opts) as ydl:
-                # If the file does not exist, proceed to download the audio
-                ydl.download([url])
-                print(f"Audio downloaded at: {file_path}")
+            def _download():
+                with YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
+                    print(f"Audio downloaded at: {file_path}")
                 return file_path
+            return await loop.run_in_executor(None, _download)
         except Exception as e:
             print(f"Error occured at audio download: {e}")
             return None
@@ -208,7 +214,7 @@ class Music_cog(commands.Cog):
         if not is_exist:
             print(f"Downloading {formatted_title}")
             await self.embed_msg.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{formatted_title}'", follow_up=True, ephemeral=True)
-            file_path = self.download_audio(file_path, choice["url"])
+            file_path = await self.download_audio(file_path, choice["url"])
             if not file_path:
                 await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red(), follow_up=True)
                 return
