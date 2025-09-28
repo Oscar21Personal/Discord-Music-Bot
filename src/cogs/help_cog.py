@@ -71,9 +71,8 @@ class Help_cog(commands.Cog):
             {"title": "Song Two", "uploader": "Artist B"},
             {"title": "Song Three", "uploader": "Artist C"},
         ]
-        view = SelectMenu(self.embed_msg, results)
-        await interaction.followup.send("Choose a music:", view=view, ephemeral=True)
-        # await self.embed_msg.send_embed_msg_inter(interaction, "Title", "Choose a song:", view=view, follow_up=True, ephemeral=True)
+        view = SelectMenu(results)
+        await interaction.followup.send("Choose the music to be downloaded:", view=view, ephemeral=True)
         # Wait until user selects or timeout
         await view.wait()
         if view.result is None:
@@ -115,7 +114,6 @@ class Help_cog(commands.Cog):
         except Exception as e:
             print(f"An error with syncing application commands has occurred: {e}")
             await self.embed_msg.send_embed_msg_ctx(ctx, "ERROR", f"An error with syncing application commands has occurred: {e}", msg_color=discord.Color.red())
-
 
 
 async def setup(bot):

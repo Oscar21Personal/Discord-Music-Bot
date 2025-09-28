@@ -172,15 +172,20 @@ class Music_cog(commands.Cog):
         
         # Search beforehand to make sure the audio is valid
         print(f"Validating query: {query}")
-        await self.embed_msg.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'")
+        await self.embed_msg.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'", ephemeral=True)
         search_query, file_path, title, is_exist = self.validate_audio(query)
         if not file_path:
             await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "The Youtube link is invalid or the search query is too general.", msg_color=discord.Color.red(), follow_up=True)
             return
+        
+        # If search using query, allow users to choose which one to download
+
+        # Check if music already exists in current album
+        
         # Download the audio
         if not is_exist:
             print(f"Downloading {title}")
-            await self.embed_msg.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{title}'", follow_up=True)
+            await self.embed_msg.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{title}'", follow_up=True, ephemeral=True)
             file_path = self.download_audio(file_path, search_query)
             if not file_path:
                 await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red(), follow_up=True)
