@@ -89,11 +89,18 @@ class Album_cog(commands.Cog):
         album_dir = self.get_current_album_dir()
         # Extract all mp3 file titles in current album
         formatted_description = ""
+        max_length = 50
+        i = 0
         for file_name in os.listdir(album_dir):
+            # Prevent showing a really long message
+            if i >= max_length:
+                formatted_description += "More songs following...\n"
+                break
             file_path = os.path.join(album_dir, file_name)
             if os.path.isfile(file_path) and file_name.lower().endswith(".mp3"):
                 title = file_name.removesuffix(".mp3")
                 formatted_description += f" - {title}\n"
+                i += 1
         formatted_description = formatted_description[:-1]      # Removes the last character '\n'
         await self.embed_msg.send_embed_msg_inter(interaction, "Current Album Tracks:", formatted_description)
 
