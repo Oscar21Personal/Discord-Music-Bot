@@ -7,6 +7,8 @@ from discord.ext import commands
 from discord import app_commands
 from yt_dlp import YoutubeDL
 
+from utils.select_menu import SelectMenu
+
 
 # Load ADMINISTRATOR_ID from .env file
 load_dotenv()
@@ -61,50 +63,55 @@ class Music_cog(commands.Cog):
 
     # Helper function to search for valid audio to download
     def validate_audio(self, query):
-        # Initialise album directory
-        album_dir = self.album_cog.get_current_album_dir()
-        # Extract video info first
         ydl_opts_info = {
             'format': 'bestaudio/best',
             'quiet': True,
+            'no_warnings': True,
         }
-        search_query = None
+        audio_results = []
         try:
             with YoutubeDL(ydl_opts_info) as ydl:
-                # Use ytsearch if query is not a direct URL
-                if not query.startswith("http"):
-                    search_query = f"ytsearch1:{query}"     # Only gives one result
+                # Case 1: Direct YouTube URL
+                if query.startswith("http"):
+                    # Extract video info
+                    info_dict = ydl.extract_info(query, download=False)
+                    audio_results.append({
+                        "title": info_dict.get("title", "Unknown Title"),
+                        "uploader": info_dict.get("uploader", "Unknown Uploader"),
+                        "url": info_dict.get("webpage_url", query)
+                    })
+                # Case 2: Search by title
                 else:
-                    search_query = query
-                # Don't download yet, just extract info
-                info_dict = ydl.extract_info(search_query, download=False)
-                ########################################
-                # TODO: check if the mp3 is correct
-                # If ytsearch results a playlist, check number of entries 
-                # if info_dict.get("_type") == "playlist":
-                #     entries = info_dict.get("entries", [])
-                #     if len(entries) != 1:
-                #         print(f"Multiple search results found ({len(entries)}), aborting.")
-                #         return None, None, None, None
-                #     info_dict = entries[0]
-                ########################################
-                # Format the title
-                title = info_dict.get("title", "Unknown Title")
-                formatted_title = self.format_title(title)
-                file_path = os.path.join(album_dir, f"{formatted_title}.mp3")
-                # Check if the file already exists in the "album" folder
-                is_exist = False
-                if os.path.exists(file_path):
-                    print(f"Audio file already exists: {file_path}")
-                    is_exist = True
-                return search_query, file_path, formatted_title, is_exist
+                    query = f"ytsearch3:{query}"
+                    info_dict = ydl.extract_info(query, download=False)
+                    entries = info_dict.get("entries", [])
+                    for e in entries:
+                        audio_results.append({
+                            "title": e.get("title", "Unknown Title"),
+                            "uploader": e.get("uploader", "Unknown Uploader"),
+                            "url": e.get("webpage_url", "Unknown Url"),
+                        })
+                return audio_results
         except Exception as e:
-            print(f"Error occured at audio validation: {e}")
-            return None, None, None, None
+            print(f"Error occurred at audio validation: {e}")
+            return []
+
+
+    # Helper function to check if music is already downloaded at current album
+    def check_music_exist(self, choice):
+        album_dir = self.album_cog.get_current_album_dir()
+        title = choice["title"]
+        formatted_title = self.format_title(title)
+        file_path = os.path.join(album_dir, f"{formatted_title}.mp3")
+        if os.path.exists(file_path):
+            print(f"Audio file already exists: {file_path}")
+            return True, file_path
+        else:
+            return False, file_path
 
 
     # Helper function to download and store audio
-    def download_audio(self, file_path, search_query):
+    def download_audio(self, file_path, url):
         file_path_no_ext = file_path.removesuffix(".mp3")
         # Options for yt-dlp downloads
         ydl_opts = {
@@ -116,12 +123,13 @@ class Music_cog(commands.Cog):
                 'preferredquality': '320',
             }],
             'quiet': True,
+            'no_warnings': True,
         }
         try:
             # Download the audio to the file_path
             with YoutubeDL(ydl_opts) as ydl:
                 # If the file does not exist, proceed to download the audio
-                ydl.download([search_query])
+                ydl.download([url])
                 print(f"Audio downloaded at: {file_path}")
                 return file_path
         except Exception as e:
@@ -173,27 +181,41 @@ class Music_cog(commands.Cog):
         # Search beforehand to make sure the audio is valid
         print(f"Validating query: {query}")
         await self.embed_msg.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'", ephemeral=True)
-        search_query, file_path, title, is_exist = self.validate_audio(query)
-        if not file_path:
-            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "The Youtube link is invalid or the search query is too general.", msg_color=discord.Color.red(), follow_up=True)
+        audio_results = self.validate_audio(query)
+        if not audio_results:
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "The Youtube link or the search query is invalid.", msg_color=discord.Color.red(), follow_up=True)
             return
         
         # If search using query, allow users to choose which one to download
+        if len(audio_results) > 1:
+            view = SelectMenu(audio_results)
+            await interaction.followup.send("Choose the music to be downloaded:", view=view, ephemeral=True)
+            # Wait until user selects or timeout
+            await view.wait()
+            if view.result is None:
+                await self.embed_msg.send_embed_msg_inter(interaction, "Aborting", "No selection made.", follow_up=True, ephemeral=True)
+                return
+            choice = audio_results[view.result]
+        else:
+            # If search using link, only gives 1 result
+            choice = audio_results[0]
 
         # Check if music already exists in current album
+        is_exist, file_path = self.check_music_exist(choice)
+        formatted_title = self.format_title(choice["title"])
         
         # Download the audio
         if not is_exist:
-            print(f"Downloading {title}")
-            await self.embed_msg.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{title}'", follow_up=True, ephemeral=True)
-            file_path = self.download_audio(file_path, search_query)
+            print(f"Downloading {formatted_title}")
+            await self.embed_msg.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{formatted_title}'", follow_up=True, ephemeral=True)
+            file_path = self.download_audio(file_path, choice["url"])
             if not file_path:
                 await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red(), follow_up=True)
                 return
 
         # Add audio to list
-        self.music_queue.append((file_path, title))
-        await self.embed_msg.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music *{title}* added to the queue.", follow_up=True)
+        self.music_queue.append((file_path, formatted_title))
+        await self.embed_msg.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music *{formatted_title}* added to the queue.", follow_up=True)
         # Start playing the audio
         if not self.is_playing:
             self.play_next(interaction)
