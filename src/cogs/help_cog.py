@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from discord.ext import commands
 from discord import app_commands
 
-from utils.embed_msg import EmbedMsg
 
 # Load ADMINISTRATOR_ID from .env file
 load_dotenv()
@@ -14,7 +13,7 @@ ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
 class Help_cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.embed_msg = EmbedMsg()
+        self.embed_msg = bot.embed_msg
 
 
     @commands.Cog.listener()
@@ -72,15 +71,16 @@ class Help_cog(commands.Cog):
             {"title": "Song Two", "uploader": "Artist B"},
             {"title": "Song Three", "uploader": "Artist C"},
         ]
-        view = SelectMenu(results)
-        await interaction.followup.send("Choose a song:", view=view, ephemeral=True)
+        view = SelectMenu(self.embed_msg, results)
+        await interaction.followup.send("Choose a music:", view=view, ephemeral=True)
+        # await self.embed_msg.send_embed_msg_inter(interaction, "Title", "Choose a song:", view=view, follow_up=True, ephemeral=True)
         # Wait until user selects or timeout
         await view.wait()
         if view.result is None:
-            await interaction.followup.send("No selection made.", ephemeral=True)
+            await self.embed_msg.send_embed_msg_inter(interaction, "No selection made", "No selection made...", follow_up=True, ephemeral=True)
             return
         choice = results[view.result]
-        await interaction.followup.send(f"Downloading **{choice['title']}** by {choice['uploader']}...", ephemeral=True)
+        await self.embed_msg.send_embed_msg_inter(interaction, "Downloading", f"Downloading **{choice['title']}** by {choice['uploader']}...", follow_up=True, ephemeral=True)
         ############################################
 
 
@@ -99,7 +99,7 @@ class Help_cog(commands.Cog):
             return
         # Set number of seconds
         self.embed_msg.delete_msg_seconds = seconds
-        await self.embed_msg.send_embed_msg_inter(interaction, "Auto-Delete On", f"Message auto-delete is now set to {self.delete_msg_seconds} seconds.")
+        await self.embed_msg.send_embed_msg_inter(interaction, "Auto-Delete On", f"Message auto-delete is now set to {self.embed_msg.delete_msg_seconds} seconds.")
 
 
     # Main function for sync command

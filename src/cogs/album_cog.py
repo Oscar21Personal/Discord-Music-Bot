@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 from discord.ext import commands
 from discord import app_commands
 
-from utils.embed_msg import EmbedMsg
 
 # Load ADMINISTRATOR_ID from .env file
 load_dotenv()
@@ -18,7 +17,7 @@ ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
 class Album_cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.embed_msg = EmbedMsg()
+        self.embed_msg = bot.embed_msg
         self.music_cog = None
         self.current_album = "Default"
         

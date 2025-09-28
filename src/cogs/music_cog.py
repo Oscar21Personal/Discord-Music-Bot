@@ -1,14 +1,12 @@
 import os
 import discord
 import re
-import asyncio
 
 from dotenv import load_dotenv
 from discord.ext import commands
 from discord import app_commands
 from yt_dlp import YoutubeDL
 
-from utils.embed_msg import EmbedMsg
 
 # Load ADMINISTRATOR_ID from .env file
 load_dotenv()
@@ -18,7 +16,7 @@ ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
 class Music_cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.embed_msg = EmbedMsg()
+        self.embed_msg = bot.embed_msg
         self.album_cog = None
         self.music_queue = []
         self.is_playing = False

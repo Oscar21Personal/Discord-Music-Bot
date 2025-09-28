@@ -1,14 +1,18 @@
 import os
 import discord
 import asyncio
-import subprocess, sys, importlib
+import subprocess, sys
 
 from dotenv import load_dotenv
 from discord.ext import commands
 
+from utils.embed_msg import EmbedMsg
+
+
 # Load DISCORD_BOT_TOKEN from .env file
 load_dotenv()  
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+
 
 # Make sure ytdlp is up-to-date
 def ensure_latest_ytdlp():
@@ -26,12 +30,19 @@ def ensure_latest_ytdlp():
         print("Could not auto-update yt-dlp:", e)
 
 
+# Create an embed_msg object
+embed_msg = EmbedMsg()
+
 # Create a bot object
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
+# Attach class here to share instance across cogs
+bot.embed_msg = embed_msg   
+
 
 @bot.event
 async def on_ready():
     print(f"Bot Ready! Bot connected as {bot.user}")
+
 
 async def load():
     # Get the absolute path of the cogs
@@ -42,10 +53,12 @@ async def load():
         if filename.endswith(".py"):
             await bot.load_extension(f"cogs.{filename[:-3]}")   
 
+
 async def main():
     ensure_latest_ytdlp()
     async with bot:
         await load()
         await bot.start(TOKEN)      # Run the bot
+
 
 asyncio.run(main())
