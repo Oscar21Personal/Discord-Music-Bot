@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from discord.ext import commands
 from discord import app_commands
 
+from utils.embed_msg import EmbedMsg
+
 # Load ADMINISTRATOR_ID from .env file
 load_dotenv()
 ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
@@ -16,7 +18,7 @@ ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
 class Album_cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.help_cog = None
+        self.embed_msg = EmbedMsg()
         self.music_cog = None
         self.current_album = "Default"
         
@@ -24,12 +26,9 @@ class Album_cog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         self.initialise_album_dir()
-        # Obtain an instance of Help_cog and Music_cog
-        self.help_cog = self.bot.get_cog("Help_cog")
+        # Obtain an instance of Music_cog
         self.music_cog = self.bot.get_cog("Music_cog")
-        if not self.help_cog:
-            print("Error: Help_cog not found when linking to Album_cog")
-        elif not self.music_cog:
+        if not self.music_cog:
             print("Error: Music_cog not found when linking to Album_cog")
         else:
             print("Album_cog ready!")
@@ -76,11 +75,11 @@ class Album_cog(commands.Cog):
         new_dir = os.path.join(parent_dir, album_name)
         if os.path.isdir(new_dir):
             # Reject request if directory already exists
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Album **{album_name}** already exists!", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Album **{album_name}** already exists!", msg_color=discord.Color.red())
             return
         else:
             os.makedirs(new_dir)
-            await self.help_cog.send_embed_msg_inter(interaction, "Album Created!", f"Album **{album_name}** created successfully. Current Album is switched to **{album_name}**")
+            await self.embed_msg.send_embed_msg_inter(interaction, "Album Created!", f"Album **{album_name}** created successfully. Current Album is switched to **{album_name}**")
         self.current_album = album_name
 
 
@@ -97,7 +96,7 @@ class Album_cog(commands.Cog):
                 title = file_name.removesuffix(".mp3")
                 formatted_description += f" - {title}\n"
         formatted_description = formatted_description[:-1]      # Removes the last character '\n'
-        await self.help_cog.send_embed_msg_inter(interaction, "Current Album Tracks:", formatted_description)
+        await self.embed_msg.send_embed_msg_inter(interaction, "Current Album Tracks:", formatted_description)
 
     
     # Main function for album_list command
@@ -114,7 +113,7 @@ class Album_cog(commands.Cog):
                     continue
                 formatted_description += f" - {folder_name}\n"
         formatted_description = formatted_description[:-1]      # Removes the last character '\n'
-        await self.help_cog.send_embed_msg_inter(interaction, "Album List:", formatted_description)
+        await self.embed_msg.send_embed_msg_inter(interaction, "Album List:", formatted_description)
 
 
     # Album autocomplete callback function
@@ -139,10 +138,10 @@ class Album_cog(commands.Cog):
         parent_dir = os.path.dirname(current_dir)
         switch_dir = os.path.join(parent_dir, album_name)
         if not os.path.isdir(switch_dir):
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Album **{album_name}** does not exist!", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Album **{album_name}** does not exist!", msg_color=discord.Color.red())
             return
         self.current_album = album_name
-        await self.help_cog.send_embed_msg_inter(interaction, "Album Switched!", f"Current album is now switched to **{album_name}**")
+        await self.embed_msg.send_embed_msg_inter(interaction, "Album Switched!", f"Current album is now switched to **{album_name}**")
 
 
     # Main function for album_play command
@@ -152,11 +151,11 @@ class Album_cog(commands.Cog):
         # Join user's channel
         user_voice_channel = await self.music_cog.join_channel(interaction)
         if user_voice_channel is None:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "You need to be in a voice channel for me to join!", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "You need to be in a voice channel for me to join!", msg_color=discord.Color.red())
             return
         # Check if the number of songs is valid
         if number_of_songs <= 0:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "Invalid argument! It must be an positive non-zero integer.", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "Invalid argument! It must be an positive non-zero integer.", msg_color=discord.Color.red())
             return
         # Get current album folder
         album_dir = self.get_current_album_dir()
@@ -180,7 +179,7 @@ class Album_cog(commands.Cog):
             formatted_description += f" - {title}\n"
             self.music_cog.music_queue.append((file_path, title))
         formatted_description = formatted_description[:-1]      # Removes the last character '\n'
-        await self.help_cog.send_embed_msg_inter(interaction, "Music Loaded!", formatted_description)
+        await self.embed_msg.send_embed_msg_inter(interaction, "Music Loaded!", formatted_description)
         # Start playing the audio
         if not self.music_cog.is_playing:
             self.music_cog.play_next(interaction)
@@ -193,18 +192,18 @@ class Album_cog(commands.Cog):
         new_album_name = self.format_album_title(new_album_name)
         # Reject request if renaming "Default"
         if self.current_album == "Default":
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Album **Default** cannot be renamed!", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Album **Default** cannot be renamed!", msg_color=discord.Color.red())
             return
         current_dir = self.get_current_album_dir()
         parent_dir = os.path.dirname(current_dir)
         new_dir = os.path.join(parent_dir, new_album_name)
         # Reject request if directory already exists
         if os.path.isdir(new_dir):
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Album **{new_album_name}** already exists!", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Album **{new_album_name}** already exists!", msg_color=discord.Color.red())
             return
         os.rename(current_dir, new_dir)
         self.current_album = new_album_name
-        await self.help_cog.send_embed_msg_inter(interaction, "Album Renamed!", f"Current album is now renamed to **{new_album_name}**")
+        await self.embed_msg.send_embed_msg_inter(interaction, "Album Renamed!", f"Current album is now renamed to **{new_album_name}**")
 
 
     # Main function for album_delete command
@@ -214,26 +213,26 @@ class Album_cog(commands.Cog):
         album_name = self.format_album_title(album_name)
         # Only administrator can delete albums
         if str(interaction.user.id) != ADMINISTRATOR_ID:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red())
             return
         # Reject request if deleting "Default"
         if album_name == "Default":
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Album **Default** cannot be deleted!", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Album **Default** cannot be deleted!", msg_color=discord.Color.red())
             return
         # Reject request if deleting current album
         if self.current_album == album_name:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"You are currently at album **{self.current_album}**! You need to switch to another album first!", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"You are currently at album **{self.current_album}**! You need to switch to another album first!", msg_color=discord.Color.red())
             return
         # Reject request if directory does not exsist
         current_dir = self.get_current_album_dir()
         parent_dir = os.path.dirname(current_dir)
         delete_dir = os.path.join(parent_dir, album_name)
         if not os.path.isdir(delete_dir):
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Album **{album_name}** does not exist!", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Album **{album_name}** does not exist!", msg_color=discord.Color.red())
             return
         # Deletes the directory and all its contents
         shutil.rmtree(delete_dir)
-        await self.help_cog.send_embed_msg_inter(interaction, "Album Deleted!", f"Album **{album_name}** and its tracks deleted successfully!")
+        await self.embed_msg.send_embed_msg_inter(interaction, "Album Deleted!", f"Album **{album_name}** and its tracks deleted successfully!")
         
 
 async def setup(bot):

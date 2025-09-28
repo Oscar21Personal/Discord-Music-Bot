@@ -8,6 +8,8 @@ from discord.ext import commands
 from discord import app_commands
 from yt_dlp import YoutubeDL
 
+from utils.embed_msg import EmbedMsg
+
 # Load ADMINISTRATOR_ID from .env file
 load_dotenv()
 ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
@@ -16,7 +18,7 @@ ADMINISTRATOR_ID = os.getenv("ADMINISTRATOR_ID")
 class Music_cog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.help_cog = None
+        self.embed_msg = EmbedMsg()
         self.album_cog = None
         self.music_queue = []
         self.is_playing = False
@@ -26,12 +28,9 @@ class Music_cog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        # Obtain an instance of Help_cog and Album_cog
-        self.help_cog = self.bot.get_cog("Help_cog")
+        # Obtain an instance of Album_cog
         self.album_cog = self.bot.get_cog("Album_cog")
-        if not self.help_cog:
-            print("Error: Help_cog not found when linking to Music_cog")
-        elif not self.album_cog:
+        if not self.album_cog:
             print("Error: Album_cog not found when linking to Music_cog")
         else:
             print("Music_cog ready!")
@@ -170,28 +169,28 @@ class Music_cog(commands.Cog):
         # Join user's channel
         user_voice_channel = await self.join_channel(interaction)
         if user_voice_channel is None:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "You need to be in a voice channel for me to join!", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "You need to be in a voice channel for me to join!", msg_color=discord.Color.red())
             return
         
         # Search beforehand to make sure the audio is valid
         print(f"Validating query: {query}")
-        await self.help_cog.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'")
+        await self.embed_msg.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'")
         search_query, file_path, title, is_exist = self.validate_audio(query)
         if not file_path:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "The Youtube link is invalid or the search query is too general.", msg_color=discord.Color.red(), follow_up=True)
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "The Youtube link is invalid or the search query is too general.", msg_color=discord.Color.red(), follow_up=True)
             return
         # Download the audio
         if not is_exist:
             print(f"Downloading {title}")
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{title}'", follow_up=True)
+            await self.embed_msg.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{title}'", follow_up=True)
             file_path = self.download_audio(file_path, search_query)
             if not file_path:
-                await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red(), follow_up=True)
+                await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red(), follow_up=True)
                 return
 
         # Add audio to list
         self.music_queue.append((file_path, title))
-        await self.help_cog.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music *{title}* added to the queue.", follow_up=True)
+        await self.embed_msg.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music *{title}* added to the queue.", follow_up=True)
         # Start playing the audio
         if not self.is_playing:
             self.play_next(interaction)
@@ -214,7 +213,7 @@ class Music_cog(commands.Cog):
     async def music_clear_handler(self, interaction):
         # Check if the music has already stopped
         if not self.is_playing:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "Music queue has already cleared.", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "Music queue has already cleared.", msg_color=discord.Color.red())
             return
         # Stop the current song if it's playing
         voice_client = discord.utils.get(self.bot.voice_clients, guild=interaction.guild)
@@ -224,7 +223,7 @@ class Music_cog(commands.Cog):
         self.music_queue = []
         self.is_playing = False
         print("Stopped the current music and cleared the queue.")
-        await self.help_cog.send_embed_msg_inter(interaction, "Music Queue Cleared!", "Stopped the current music and cleared the queue.")
+        await self.embed_msg.send_embed_msg_inter(interaction, "Music Queue Cleared!", "Stopped the current music and cleared the queue.")
 
 
     # Aliase for music_list command
@@ -256,7 +255,7 @@ class Music_cog(commands.Cog):
             i += 1
         formatted_description = formatted_description[:-1]  # Removes the last character '\n'
         # Send the message
-        await self.help_cog.send_embed_msg_inter(interaction, "Music Queue:", formatted_description)
+        await self.embed_msg.send_embed_msg_inter(interaction, "Music Queue:", formatted_description)
 
 
     # Aliase for music_skip command
@@ -275,7 +274,7 @@ class Music_cog(commands.Cog):
     async def music_skip_handler(self, interaction):
         # Check if the bot is playing
         if not self.is_playing:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "No Music to be skipped.", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "No Music to be skipped.", msg_color=discord.Color.red())
             return
         # Stop the current song if it's playing
         voice_client = discord.utils.get(self.bot.voice_clients, guild=interaction.guild)
@@ -285,10 +284,10 @@ class Music_cog(commands.Cog):
             # Note: when .stop() is called, it executes the after function in .play(), which automatically calls play_next()
             voice_client.stop()
             if len(self.music_queue) == 0:
-                await self.help_cog.send_embed_msg_inter(interaction, "Music Skipped!", f"Skipped *{skipped_title}*.\nThe queue is now empty.")
+                await self.embed_msg.send_embed_msg_inter(interaction, "Music Skipped!", f"Skipped *{skipped_title}*.\nThe queue is now empty.")
                 return
             _, next_title = self.music_queue[0]
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Skipped!", f"Skipped *{skipped_title}*.\nStart playing *{next_title}*.")
+            await self.embed_msg.send_embed_msg_inter(interaction, "Music Skipped!", f"Skipped *{skipped_title}*.\nStart playing *{next_title}*.")
 
 
     # Main function for music_pause command
@@ -297,9 +296,9 @@ class Music_cog(commands.Cog):
         voice_client = discord.utils.get(self.bot.voice_clients, guild=interaction.guild)
         if voice_client and voice_client.is_playing():
             voice_client.pause()
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Paused!", f"Music *{self.current_music[1]}* is currently paused.")
+            await self.embed_msg.send_embed_msg_inter(interaction, "Music Paused!", f"Music *{self.current_music[1]}* is currently paused.")
         else:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "No music is playing right now.", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "No music is playing right now.", msg_color=discord.Color.red())
 
 
     # Main function for music_resume command
@@ -308,9 +307,9 @@ class Music_cog(commands.Cog):
         voice_client = discord.utils.get(self.bot.voice_clients, guild=interaction.guild)
         if voice_client and voice_client.is_paused():
             voice_client.resume()
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Resumed!", f"Music *{self.current_music[1]}* is currently resumed.")
+            await self.embed_msg.send_embed_msg_inter(interaction, "Music Resumed!", f"Music *{self.current_music[1]}* is currently resumed.")
         else:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "No music is paused right now.", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "No music is paused right now.", msg_color=discord.Color.red())
 
 
     # Main function for music_repeat command
@@ -321,12 +320,12 @@ class Music_cog(commands.Cog):
             # If argument does not switch mode
             if (self.repeat_mode == True and state == True) or (self.repeat_mode == False and state == False):
                 mode_str = "ON" if self.repeat_mode else "OFF"
-                await self.help_cog.send_embed_msg_inter(interaction, "Mode Status", f"Repeat mode is already **{mode_str}**.")
+                await self.embed_msg.send_embed_msg_inter(interaction, "Mode Status", f"Repeat mode is already **{mode_str}**.")
                 return
         # If no argument or input on/off, switch the mode
         self.repeat_mode = not self.repeat_mode
         mode_str = "ON" if self.repeat_mode else "OFF"
-        await self.help_cog.send_embed_msg_inter(interaction, "Mode Switched!", f"Repeat mode is now **{mode_str}**.")
+        await self.embed_msg.send_embed_msg_inter(interaction, "Mode Switched!", f"Repeat mode is now **{mode_str}**.")
         # If repeat mode on and current song is not in the list
         if self.repeat_mode and (not self.current_music in self.music_queue):
             self.music_queue.append(self.current_music)
@@ -356,13 +355,13 @@ class Music_cog(commands.Cog):
         for tup in self.music_queue:
             if modified_title in tup:
                 self.music_queue.pop(index)
-                await self.help_cog.send_embed_msg_inter(interaction, "Music Removed!", f"Music *{tup[1]}* removed from the queue.")
+                await self.embed_msg.send_embed_msg_inter(interaction, "Music Removed!", f"Music *{tup[1]}* removed from the queue.")
                 is_removed = True
                 break
             index += 1
         # If nothing is removed, then title does not exist
         if not is_removed:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Music title *{modified_title}* not found.", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Music title *{modified_title}* not found.", msg_color=discord.Color.red())
 
 
     # Main function for music_add command
@@ -371,20 +370,20 @@ class Music_cog(commands.Cog):
     async def music_add(self, interaction: discord.Interaction, query: str):
         # Search beforehand to make sure the audio is valid
         print(f"Validating query: {query}")
-        await self.help_cog.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'")
+        await self.embed_msg.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'")
         search_query, file_path, title, is_exist = self.validate_audio(query)
         if not file_path:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "The Youtube link is invalid or the search query is too general.", msg_color=discord.Color.red(), follow_up=True)
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "The Youtube link is invalid or the search query is too general.", msg_color=discord.Color.red(), follow_up=True)
             return
         # Download the audio
         if not is_exist:
             print(f"Downloading {title}")
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{title}'", follow_up=True)
+            await self.embed_msg.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{title}'", follow_up=True)
             file_path = self.download_audio(file_path, search_query)
             if not file_path:
-                await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red(), follow_up=True)
+                await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red(), follow_up=True)
                 return
-        await self.help_cog.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music *{title}* added to current album.", follow_up=True)
+        await self.embed_msg.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music *{title}* added to current album.", follow_up=True)
 
 
     # Music in album autocomplete callback function
@@ -408,15 +407,15 @@ class Music_cog(commands.Cog):
         modified_title = self.format_title(music_title)
         # Only administrator can delete music
         if str(interaction.user.id) != ADMINISTRATOR_ID:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "You do not have permission to use this command.", msg_color=discord.Color.red())
             return
         # Reject request if music is in the queue or current playing
         if modified_title == self.current_music[1]:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Music *{modified_title}* is currently playing.", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Music *{modified_title}* is currently playing.", msg_color=discord.Color.red())
             return
         for tup in self.music_queue:
             if modified_title in tup:
-                await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Music *{modified_title}* is still in the music queue.", msg_color=discord.Color.red())
+                await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Music *{modified_title}* is still in the music queue.", msg_color=discord.Color.red())
                 return
         # Delete the music from current album
         album_dir = self.album_cog.get_current_album_dir()
@@ -424,9 +423,9 @@ class Music_cog(commands.Cog):
         file_path = os.path.join(album_dir, file_to_delete)
         if os.path.exists(file_path):
             os.remove(file_path)
-            await self.help_cog.send_embed_msg_inter(interaction, "Music Deleted!", f"Music *{modified_title}* deleted from the current album.")
+            await self.embed_msg.send_embed_msg_inter(interaction, "Music Deleted!", f"Music *{modified_title}* deleted from the current album.")
         else:
-            await self.help_cog.send_embed_msg_inter(interaction, "ERROR", f"Music *{modified_title}* does not exist in current album.", msg_color=discord.Color.red())
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Music *{modified_title}* does not exist in current album.", msg_color=discord.Color.red())
 
 
 async def setup(bot):

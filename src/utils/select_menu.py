@@ -12,7 +12,7 @@ class SelectMenu(View):
         options = [
             discord.SelectOption(
                 label=f"{i+1}. {r.get('title', 'Unknown')[:90]}",  # truncate long titles
-                description=f"{r.get('duration', '??')}s by {r.get('uploader', 'Unknown')}",
+                description=f"by {r.get('uploader', 'Unknown')}",
                 value=str(i)  # store index
             )
             for i, r in enumerate(results)
@@ -23,7 +23,7 @@ class SelectMenu(View):
 
 class MusicOptions(Select):
     def __init__(self, options):
-        super().__init__(placeholder="Choose the music...", options=options)
+        super().__init__(options=options)
 
     async def callback(self, interaction: discord.Interaction):
         index = int(self.values[0])  # convert str -> int
