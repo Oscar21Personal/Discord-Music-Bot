@@ -207,6 +207,14 @@ class Album_cog(commands.Cog):
         if os.path.isdir(new_dir):
             await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Album **{new_album_name}** already exists!", msg_color=discord.Color.red())
             return
+        # Reject request if music in current album is in the queue
+        check_list = [self.music_cog.current_music] + self.music_cog.music_queue
+        for file_path, title in check_list:
+            album_dir = os.path.dirname(file_path)
+            if album_dir == current_dir:
+                await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", f"Music *{title}* from current album is already queued! Cannot rename current album when it is in use!", msg_color=discord.Color.red())
+                return
+        # Rename directory
         os.rename(current_dir, new_dir)
         self.current_album = new_album_name
         await self.embed_msg.send_embed_msg_inter(interaction, "Album Renamed!", f"Current album is now renamed to **{new_album_name}**")
