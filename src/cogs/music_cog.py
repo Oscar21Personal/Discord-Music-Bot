@@ -63,36 +63,40 @@ class Music_cog(commands.Cog):
 
 
     # Helper function to search for valid audio to download
-    def validate_audio(self, query):
+    async def validate_audio(self, query):
         ydl_opts_info = {
             'format': 'bestaudio/best',
             'quiet': True,
             'no_warnings': True,
         }
-        audio_results = []
+        # Validate the audio asynchronously
+        loop = asyncio.get_event_loop()
         try:
-            with YoutubeDL(ydl_opts_info) as ydl:
-                # Case 1: Direct YouTube URL
-                if query.startswith("http"):
-                    # Extract video info
-                    info_dict = ydl.extract_info(query, download=False)
-                    audio_results.append({
-                        "title": info_dict.get("title", "Unknown Title"),
-                        "uploader": info_dict.get("uploader", "Unknown Uploader"),
-                        "url": info_dict.get("webpage_url", query)
-                    })
-                # Case 2: Search by title
-                else:
-                    query = f"ytsearch3:{query}"
-                    info_dict = ydl.extract_info(query, download=False)
-                    entries = info_dict.get("entries", [])
-                    for e in entries:
+            def _extract(query):
+                audio_results = []
+                with YoutubeDL(ydl_opts_info) as ydl:
+                    # Case 1: Direct YouTube URL
+                    if query.startswith("http"):
+                        # Extract video info
+                        info_dict = ydl.extract_info(query, download=False)
                         audio_results.append({
-                            "title": e.get("title", "Unknown Title"),
-                            "uploader": e.get("uploader", "Unknown Uploader"),
-                            "url": e.get("webpage_url", "Unknown Url"),
+                            "title": info_dict.get("title", "Unknown Title"),
+                            "uploader": info_dict.get("uploader", "Unknown Uploader"),
+                            "url": info_dict.get("webpage_url", query)
                         })
+                    # Case 2: Search by title
+                    else:
+                        query = f"ytsearch3:{query}"
+                        info_dict = ydl.extract_info(query, download=False)
+                        entries = info_dict.get("entries", [])
+                        for e in entries:
+                            audio_results.append({
+                                "title": e.get("title", "Unknown Title"),
+                                "uploader": e.get("uploader", "Unknown Uploader"),
+                                "url": e.get("webpage_url", "Unknown Url"),
+                            })
                 return audio_results
+            return await loop.run_in_executor(None, lambda: _extract(query))
         except Exception as e:
             print(f"Error occurred at audio validation: {e}")
             return []
@@ -187,7 +191,7 @@ class Music_cog(commands.Cog):
         # Search beforehand to make sure the audio is valid
         print(f"Validating query: {query}")
         await self.embed_msg.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'", ephemeral=True)
-        audio_results = self.validate_audio(query)
+        audio_results = await self.validate_audio(query)
         if not audio_results:
             await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "The Youtube link or the search query is invalid.", msg_color=discord.Color.red(), follow_up=True)
             return
