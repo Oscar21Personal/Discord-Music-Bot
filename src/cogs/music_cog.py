@@ -405,20 +405,39 @@ class Music_cog(commands.Cog):
     async def music_add(self, interaction: discord.Interaction, query: str):
         # Search beforehand to make sure the audio is valid
         print(f"Validating query: {query}")
-        await self.embed_msg.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'")
-        search_query, file_path, title, is_exist = self.validate_audio(query)
-        if not file_path:
-            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "The Youtube link is invalid or the search query is too general.", msg_color=discord.Color.red(), follow_up=True)
+        await self.embed_msg.send_embed_msg_inter(interaction, "Validating Query...", f"Searching '{query}'", ephemeral=True)
+        audio_results = await self.validate_audio(query)
+        if not audio_results:
+            await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "The Youtube link or the search query is invalid.", msg_color=discord.Color.red(), follow_up=True)
             return
+        
+        # If search using query, allow users to choose which one to download
+        if len(audio_results) > 1:
+            view = SelectMenu(audio_results)
+            await interaction.followup.send("Choose the music to be downloaded:", view=view, ephemeral=True)
+            # Wait until user selects or timeout
+            await view.wait()
+            if view.result is None:
+                await self.embed_msg.send_embed_msg_inter(interaction, "Aborting", "No selection made.", follow_up=True, ephemeral=True)
+                return
+            choice = audio_results[view.result]
+        else:
+            # If search using link, only gives 1 result
+            choice = audio_results[0]
+
+        # Check if music already exists in current album
+        is_exist, file_path = self.check_music_exist(choice)
+        formatted_title = self.format_title(choice["title"])
+        
         # Download the audio
         if not is_exist:
-            print(f"Downloading {title}")
-            await self.embed_msg.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{title}'", follow_up=True)
-            file_path = self.download_audio(file_path, search_query)
+            print(f"Downloading {formatted_title}")
+            await self.embed_msg.send_embed_msg_inter(interaction, "Music Downloading...", f"Downloading '{formatted_title}'", follow_up=True, ephemeral=True)
+            file_path = await self.download_audio(file_path, choice["url"])
             if not file_path:
                 await self.embed_msg.send_embed_msg_inter(interaction, "ERROR", "An error occurred while downloading the audio.", msg_color=discord.Color.red(), follow_up=True)
                 return
-        await self.embed_msg.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music *{title}* added to current album.", follow_up=True)
+        await self.embed_msg.send_embed_msg_inter(interaction, "Music Added Successfully!", f"Music *{formatted_title}* added to current album.", follow_up=True)
 
 
     # Music in album autocomplete callback function
